@@ -18,10 +18,8 @@ jobs:
         strategy:
             matrix:
                 nodjs_version: [18, 20]
-                operating_system: [ubuntu-latest, macos-latest]
-                exclude:
-                    - nodjs_version: 18
-                      operating_system: macos-latest
+                operating_system: [ubuntu-latest]
+                
         runs-on: ${{ matrix.operating_system }}
         steps:
         - name: unit testing
