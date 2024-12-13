@@ -14,7 +14,15 @@ env:
 
 jobs:
     unit-testing:
-        runs-on: ubuntu-latest
+        
+        strategy:
+            matrix:
+                nodjs_version: [18, 19, 20]
+                operating_system: [ubuntu-latest, macos-latest]
+                exclude:
+                    - nodjs_version: 18
+                      operating_system: macos-latest
+        runs-on: ${{ matrix.operating_system }}
         steps:
         - name: unit testing
           uses: actions/checkout@v4
@@ -22,7 +30,7 @@ jobs:
         - name: setup nodejs version -18
           uses: actions/setup-node@v3
           with:
-            node-version: 18
+            node-version: ${{ matrix.nodjs_version }}
 
         - name: install dependencies
           run: npm install
