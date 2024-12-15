@@ -1,0 +1,173 @@
+name: solar system workflow
+
+on:
+    workflow_dispatch:
+    push:
+        branches:
+          - main
+          - 'feature/*'
+
+env:
+    MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
+    MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
+    MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+
+jobs:
+    unit-testing:
+        name: unit testing
+        services:
+          mongo-db:
+            image: siddharth67/mongo-db:non-prod
+            ports:
+              - 27017:27017
+        env:
+          MONGO_URI: 'mongodb://localhost:27017/superData'
+          MONGO_USERNAME: non-prod-user
+          MONGO_PASSWORD: non-prod-password
+
+        
+        strategy:
+            matrix:
+                nodjs_version: [18, 20]
+                operating_system: [ubuntu-latest]
+                
+        runs-on: ${{ matrix.operating_system }}
+        steps:
+        - name: unit testing
+          uses: actions/checkout@v4
+
+        - name: setup nodejs version -18
+          uses: actions/setup-node@v3
+          with:
+            node-version: ${{ matrix.nodjs_version }}
+
+        - name: cache npm dependencies
+          uses: actions/cache@v3
+          with:
+            path: node_modules
+            key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+
+        - name: install dependencies
+          run: npm install
+
+        - name: unit testing
+          id: nodejs-unit-testing-step
+          run: npm test
+
+        - name: archive test results
+        
+          if: always() 
+          uses: actions/upload-artifact@v3
+          with:
+            name: mocha-test-result
+            path: test-results.xml
+
+    code-coverage:
+        name: code coverage
+        container:
+          image: node:18
+        services:
+          mongo-db:
+            image: siddharth67/mongo-db:non-prod
+            options:
+               --name mongo
+            
+        env:
+          MONGO_URI: 'mongodb://mongo:27017/superData'
+          MONGO_USERNAME: non-prod-user
+          MONGO_PASSWORD: non-prod-password
+        runs-on: ubuntu-latest
+        steps:
+        - name: checkout repository
+          uses: actions/checkout@v4
+
+        # - name: setup nodejs version -18
+        #   uses: actions/setup-node@v3
+        #   with:
+        #     node-version: 18
+
+        - name: cache npm dependencies
+          uses: actions/cache@v3
+          with:
+            path: node_modules
+            key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+
+        - name: install dependencies
+          run: npm install
+        
+        - name: check code coverage
+          continue-on-error: true
+          run: npm run coverage
+        
+        - name: archive test result
+          uses: actions/upload-artifact@v3
+          with:
+            name: code-coverage-result
+            path: coverage
+            retention-days: 5
+
+    docker:
+        name: containerization
+        needs: [unit-testing, code-coverage]
+        runs-on: ubuntu-latest
+        permissions: 
+          packages: write
+        steps:
+        - name: checkout repo
+          uses: actions/checkout@v4
+
+        - name: dockerhub login
+          uses: docker/login-action@v3
+          with:
+            username: ${{ vars.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_PASSWORD }} 
+
+        - name: ghcr login
+          uses: docker/login-action@v3
+          with:
+            registry: ghcr.io
+            username: ${{ github.repository_owner }}
+            password: ${{ secrets.GITHUB_TOKEN }}  
+
+
+        - name: docker build for testing
+          uses: docker/build-push-action@v4
+          with:
+            context: .
+            push: false
+            tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }} 
+
+        - name: docker image test
+          run: |
+            docker images
+            docker run --name solar-system-app -d -p 3000:3000 \
+            -e MONGO_URI=$MONGO_URI \
+            -e MONGO_USERNAME=$MONGO_USERNAME \
+            -e MONGO_PASSWORD=$MONGO_PASSWORD \
+            ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+
+            export IP=$(docker inspect -f '{{range .Networksettings.Networks}}{{.IPAddress}}{{end}}' solar-system-app)
+            echo $IP
+
+            echo Testing image url using wget
+            wget -q -O - 127.0.0.1:3000/live | grep live
+
+        - name: container registry push
+          uses: docker/build-push-action@v4
+          with:
+            context: .
+            push: true
+            tags: | 
+              ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+              ghcr.io/nikosrepos/solar-system:${{ github.sha }}
+
+
+        
+
+        
+
+          
+
+
+        
+        
