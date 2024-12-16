@@ -162,6 +162,43 @@ jobs:
               ghcr.io/nikosrepos/solar-system:${{ github.sha }}
 
 
+    dev-deploy:
+      needs: docker
+      runs-on: ubuntu-latest
+      steps: 
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      - name: k8s kubeconfig
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: install kubectl clt
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.26.0'
+
+      - name: fetch k8s cluster details
+        run: |
+          kubectl version 
+          echo ----------------
+          kubectl get nodes
+      
+
+
+
+
+
+
+
+
+
+
+              
+
+
         
 
         
