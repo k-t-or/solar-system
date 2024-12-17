@@ -41,14 +41,19 @@ jobs:
           with:
             node-version: ${{ matrix.nodjs_version }}
 
-        - name: cache npm dependencies
-          uses: actions/cache@v3
+        - name: composite action - cache and install npm packages
+          uses: ./.github/custom-actions/npm-action/action.yml
           with:
-            path: node_modules
-            key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+            path-of-folder: node_modules
 
-        - name: install dependencies
-          run: npm install
+        #- name: cache npm dependencies
+        #  uses: actions/cache@v3
+        #  with:
+        #    path: node_modules
+        #    key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+
+        #- name: install dependencies
+        #  run: npm install
 
         - name: unit testing
           id: nodejs-unit-testing-step
@@ -85,15 +90,18 @@ jobs:
         #   uses: actions/setup-node@v3
         #   with:
         #     node-version: 18
-
-        - name: cache npm dependencies
-          uses: actions/cache@v3
+        - name: composite action - cache and install npm packages
+          uses: ./.github/custom-actions/npm-action/action.yml
           with:
-            path: node_modules
-            key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+            path-of-folder: node_modules 
+        #- name: cache npm dependencies
+        #  uses: actions/cache@v3
+        #  with:
+        #    path: node_modules
+        #    key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
 
-        - name: install dependencies
-          run: npm install
+        #- name: install dependencies
+        #  run: npm install
         
         - name: check code coverage
           continue-on-error: true
